@@ -1,0 +1,6 @@
+.vscode
+.zig-cache
+# TODO! Re-Add docs.
+docs
+zig-out
+.idea/
