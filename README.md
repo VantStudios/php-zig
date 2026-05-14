@@ -22,7 +22,7 @@ Add `php-zig` as a dependency in your `build.zig.zon`:
 ```zig
 .dependencies = .{
     .@"php-zig" = .{
-        .url = "https://github.com/your-org/php-zig/archive/refs/tags/v0.1.0.tar.gz",
+        .url = "https://github.com/VantStudios/php-zig/archive/refs/tags/v0.1.0.tar.gz",
         .hash = "...",
         // or locally:
         // .path = "../php-zig",
