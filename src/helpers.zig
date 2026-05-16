@@ -33,6 +33,8 @@ pub extern fn add_assoc_double_ex(arg: ?*zval, key: [*:0]const u8, key_len: usiz
 pub extern fn add_assoc_bool_ex(arg: ?*zval, key: [*:0]const u8, key_len: usize, val: c_int) c_int;
 pub extern fn add_assoc_null_ex(arg: ?*zval, key: [*:0]const u8, key_len: usize) c_int;
 pub extern fn add_assoc_zval_ex(arg: ?*zval, key: [*:0]const u8, key_len: usize, val: ?*zval) c_int;
+pub extern fn add_assoc_stringl_ex(arg: ?*zval, key: [*:0]const u8, key_len: usize, str: [*]const u8, len: usize) c_int;
+pub extern fn add_next_index_stringl(arg: ?*zval, str: [*]const u8, len: usize) c_int;
 
 const _emalloc = if (builtin.os.tag == .windows)
     @extern(*const fn (usize) callconv(.c) ?*anyopaque, .{ .name = "_emalloc@@8" })
@@ -130,6 +132,10 @@ pub fn arrayPushArray(parent: ?*zval, child: *zval) void {
     _ = zend_hash_next_index_insert(arr, child);
 }
 
+pub fn arrayPushBinary(arr: ?*zval, val: []const u8) void {
+    _ = add_next_index_stringl(arr, val.ptr, val.len);
+}
+
 pub fn arraySetString(arr: ?*zval, key: [*:0]const u8, val: [*:0]const u8) void {
     const key_len = std.mem.len(key);
     _ = add_assoc_string_ex(arr, key, key_len, val);
@@ -162,4 +168,9 @@ pub fn arraySetArray(parent: ?*zval, key: [*:0]const u8, child: *zval) void {
         child_arr.gc.refcount += 1;
     }
     _ = zend_hash_str_update(arr, key, std.mem.len(key), child);
+}
+
+pub fn arraySetBinary(arr: ?*zval, key: [*:0]const u8, val: []const u8) void {
+    const key_len = std.mem.len(key);
+    _ = add_assoc_stringl_ex(arr, key, key_len, val.ptr, val.len);
 }

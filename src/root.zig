@@ -31,6 +31,8 @@ pub const arraySetNull = helpers.arraySetNull;
 pub const newArrayZval = helpers.newArrayZval;
 pub const arrayPushArray = helpers.arrayPushArray;
 pub const arraySetArray = helpers.arraySetArray;
+pub const arraySetBinary = helpers.arraySetBinary;
+pub const arrayPushBinary = helpers.arrayPushBinary;
 pub const module = @import("module.zig");
 pub const zend_module_entry = module.zend_module_entry;
 pub const zend_function_entry = module.zend_function_entry;
@@ -75,3 +77,4 @@ pub const MAY_BE_DOUBLE = types.MAY_BE_DOUBLE;
 pub const MAY_BE_STRING = types.MAY_BE_STRING;
 pub const MAY_BE_ARRAY = types.MAY_BE_ARRAY;
 pub const MAY_BE_OBJECT = types.MAY_BE_OBJECT;
+
