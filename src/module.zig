@@ -57,6 +57,9 @@ pub const ModuleOptions = struct {
     functions: ?[*]const zend_function_entry = null,
     zts: u8 = 1,
     module_startup_func: ?*const fn (c_int, c_int) callconv(.c) c_int = null,
+    module_shutdown_func: ?*const fn (c_int, c_int) callconv(.c) c_int = null,
+    request_startup_func: ?*const fn (c_int, c_int) callconv(.c) c_int = null,
+    request_shutdown_func: ?*const fn (c_int, c_int) callconv(.c) c_int = null,
 };
 
 pub fn returnInfo(type_mask: u32) zend_internal_arg_info {
@@ -102,9 +105,9 @@ pub fn createModule(opts: ModuleOptions) zend_module_entry {
         .name = opts.name,
         .functions = opts.functions,
         .module_startup_func = opts.module_startup_func,
-        .module_shutdown_func = null,
-        .request_startup_func = null,
-        .request_shutdown_func = null,
+        .module_shutdown_func = opts.module_shutdown_func,
+        .request_startup_func = opts.request_shutdown_func,
+        .request_shutdown_func = opts.request_startup_func,
         .info_func = null,
         .version = opts.version,
         .globals_size = 0,
