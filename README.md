@@ -148,11 +148,14 @@ MAY_BE_DOUBLE, MAY_BE_STRING, MAY_BE_ARRAY, MAY_BE_OBJECT
 pub fn createModule(opts: ModuleOptions) zend_module_entry
 
 // ModuleOptions fields:
-// .name                — extension name
-// .version             — extension version
-// .functions           — pointer to function table
-// .zts                 — thread safety (default: 1)
-// .module_startup_func — called on module load (optional)
+// .name                    — extension name
+// .version                 — extension version
+// .functions               — pointer to function table
+// .zts                     — thread safety (default: 1)
+// .module_startup_func     — called on module load (optional)
+// .module_shutdown_func    — called on module unload (optional)
+// .request_startup_func    — called on each request start (optional)
+// .request_shutdown_func   — called on each request end (optional)
 
 // Arginfo helpers
 pub fn returnInfo(type_mask: u32) zend_internal_arg_info
@@ -185,6 +188,7 @@ pub fn arrayPushLong(arr: ?*zval, val: i64) void
 pub fn arrayPushDouble(arr: ?*zval, val: f64) void
 pub fn arrayPushString(arr: ?*zval, val: [*:0]const u8) void
 pub fn arrayPushArray(parent: ?*zval, child: *zval) void
+pub fn arrayPushBinary(arr: ?*zval, val: []const u8) void
 ```
 
 ### Array Helpers (string key)
@@ -196,6 +200,7 @@ pub fn arraySetLong(arr: ?*zval, key: [*:0]const u8, val: i64) void
 pub fn arraySetDouble(arr: ?*zval, key: [*:0]const u8, val: f64) void
 pub fn arraySetString(arr: ?*zval, key: [*:0]const u8, val: [*:0]const u8) void
 pub fn arraySetArray(parent: ?*zval, key: [*:0]const u8, child: *zval) void
+pub fn arraySetBinary(arr: ?*zval, key: [*:0]const u8, val: []const u8) void
 ```
 
 ### Array Creation
