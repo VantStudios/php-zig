@@ -267,3 +267,6 @@ fn module_startup(type_: c_int, module_number: c_int) callconv(.c) c_int {
 
 php-zig handles symbol name differences between Linux and Windows automatically. On Windows you need to provide the path to the PHP development pack containing `php8ts.lib`. On Linux symbols are resolved at runtime by the PHP loader.
 
+## License
+
+MIT © [VantStudios](https://github.com/VantStudios)
