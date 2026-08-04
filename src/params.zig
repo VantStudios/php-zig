@@ -1,10 +1,17 @@
-const builtin = @import("builtin");
+const string = @import("string.zig");
+const zval_mod = @import("zval.zig");
 
 const types = @import("types.zig");
 pub const zval = types.zval;
 pub const zend_array = types.zend_array;
 pub const zend_execute_data = types.zend_execute_data;
 
+/// The `zend_execute_data` struct (PHP 8.0 ZTS). The type is opaque in
+/// `types.zig`; this full layout is used only to compute argument offsets.
+///
+/// Zend stores a call's argument zvals immediately after the
+/// `zend_execute_data` struct in the same allocation, so arg N (1-based) is
+/// found at `execute_data + @sizeOf(zend_execute_data_full) + (N-1)`.
 pub const zend_execute_data_full = extern struct {
     opline: ?*anyopaque,
     call: ?*anyopaque,
@@ -16,6 +23,7 @@ pub const zend_execute_data_full = extern struct {
     run_time_cache: ?*anyopaque,
     extra_named_params: ?*anyopaque,
 };
+
 pub const ParamType = enum {
     undef,
     null,
@@ -28,11 +36,12 @@ pub const ParamType = enum {
     unknown,
 };
 
+/// A borrowed view of an argument zval. Does not own any references.
 pub const Param = struct {
     zv: *zval,
 
     pub fn paramType(self: Param) ParamType {
-        return switch (self.zv.u1.v.type) {
+        return switch (zval_mod.getType(self.zv)) {
             types.IS_UNDEF => .undef,
             types.IS_NULL => .null,
             types.IS_FALSE, types.IS_TRUE => .bool,
@@ -46,17 +55,17 @@ pub const Param = struct {
     }
 
     pub fn toLong(self: Param) ?i64 {
-        if (self.zv.u1.v.type != types.IS_LONG) return null;
+        if (zval_mod.getType(self.zv) != types.IS_LONG) return null;
         return self.zv.value.lval;
     }
 
     pub fn toDouble(self: Param) ?f64 {
-        if (self.zv.u1.v.type != types.IS_DOUBLE) return null;
+        if (zval_mod.getType(self.zv) != types.IS_DOUBLE) return null;
         return self.zv.value.dval;
     }
 
     pub fn toBool(self: Param) ?bool {
-        return switch (self.zv.u1.v.type) {
+        return switch (zval_mod.getType(self.zv)) {
             types.IS_TRUE => true,
             types.IS_FALSE => false,
             else => null,
@@ -64,14 +73,13 @@ pub const Param = struct {
     }
 
     pub fn toString(self: Param) ?[]const u8 {
-        if (self.zv.u1.v.type != types.IS_STRING) return null;
+        if (zval_mod.getType(self.zv) != types.IS_STRING) return null;
         const str = self.zv.value.str orelse return null;
-        const ptr: [*]const u8 = @ptrCast(&str.val[0]);
-        return ptr[0..str.len];
+        return string.slice(str);
     }
 
     pub fn toArray(self: Param) ?*zend_array {
-        if (self.zv.u1.v.type != types.IS_ARRAY) return null;
+        if (zval_mod.getType(self.zv) != types.IS_ARRAY) return null;
         return self.zv.value.arr;
     }
 
@@ -80,6 +88,7 @@ pub const Param = struct {
     }
 };
 
+/// Returns argument `n` (1-based) from `execute_data`, or null.
 pub fn getArg(execute_data: ?*zend_execute_data, n: usize) ?Param {
     const ed = execute_data orelse return null;
     const base: [*]u8 = @ptrCast(ed);
@@ -88,6 +97,7 @@ pub fn getArg(execute_data: ?*zend_execute_data, n: usize) ?Param {
     return Param{ .zv = &args[n - 1] };
 }
 
+/// Returns the number of arguments passed to the current function.
 pub fn getArgCount(execute_data: ?*zend_execute_data) u32 {
     const ed: *zend_execute_data_full = @ptrCast(@alignCast(execute_data orelse return 0));
     return ed.this.u2.num_args;

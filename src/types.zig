@@ -8,18 +8,19 @@ pub const IS_STRING: u8 = 6;
 pub const IS_ARRAY: u8 = 7;
 pub const IS_OBJECT: u8 = 8;
 
-pub const IS_ARRAY_EX: u32 = 775;
-pub const IS_STRING_EX: u32 = 262;
-pub const IS_STRING_INTERNED: u32 = 38;
+/// Bit flag stored in `zval.u1.v.type_flags` for reference-counted payloads.
+pub const Z_TYPE_FLAG_REFCOUNTED: u8 = 1;
+/// Bit flag stored in `zval.u1.v.type_flags` for cycle-collectable payloads.
+pub const Z_TYPE_FLAG_COLLECTABLE: u8 = 2;
 
-pub const MAY_BE_NULL: u32 = 1 << (IS_NULL + 1);
-pub const MAY_BE_FALSE: u32 = 1 << (IS_FALSE + 1);
-pub const MAY_BE_TRUE: u32 = 1 << (IS_TRUE + 1);
-pub const MAY_BE_LONG: u32 = 1 << (IS_LONG + 1);
-pub const MAY_BE_DOUBLE: u32 = 1 << (IS_DOUBLE + 1);
-pub const MAY_BE_STRING: u32 = 1 << (IS_STRING + 1);
-pub const MAY_BE_ARRAY: u32 = 1 << (IS_ARRAY + 1);
-pub const MAY_BE_OBJECT: u32 = 1 << (IS_OBJECT + 1);
+pub const MAY_BE_NULL: u32 = 1 << IS_NULL;
+pub const MAY_BE_FALSE: u32 = 1 << IS_FALSE;
+pub const MAY_BE_TRUE: u32 = 1 << IS_TRUE;
+pub const MAY_BE_LONG: u32 = 1 << IS_LONG;
+pub const MAY_BE_DOUBLE: u32 = 1 << IS_DOUBLE;
+pub const MAY_BE_STRING: u32 = 1 << IS_STRING;
+pub const MAY_BE_ARRAY: u32 = 1 << IS_ARRAY;
+pub const MAY_BE_OBJECT: u32 = 1 << IS_OBJECT;
 
 pub const zend_refcounted_h = extern struct {
     refcount: u32,

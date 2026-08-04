@@ -1,5 +1,13 @@
 const std = @import("std");
 
+const test_extensions = [_]struct { name: []const u8, dir: []const u8 }{
+    .{ .name = "php_zig_hello", .dir = "test/hello" },
+    .{ .name = "php_zig_arrays", .dir = "test/arrays" },
+    .{ .name = "php_zig_strings", .dir = "test/strings" },
+    .{ .name = "php_zig_constants", .dir = "test/constants" },
+    .{ .name = "php_zig_lowlevel", .dir = "test/lowlevel" },
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -10,6 +18,25 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Test PHP extensions, one dynamic library per folder under test/.
+    for (test_extensions) |ext| {
+        const lib = b.addLibrary(.{
+            .name = ext.name,
+            .linkage = .dynamic,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(b.fmt("{s}/main.zig", .{ext.dir})),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+                .imports = &.{.{ .name = "php", .module = mod }},
+            }),
+        });
+        link(b, lib, "");
+        b.installArtifact(lib);
+    }
+
+    const test_step = b.step("test", "Run tests");
+
     const mod_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/root.zig"),
@@ -18,10 +45,33 @@ pub fn build(b: *std.Build) void {
         }),
     });
     const run_mod_tests = b.addRunArtifact(mod_tests);
-    const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
 
-    _ = mod;
+    const abi_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/abi.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_abi_tests = b.addRunArtifact(abi_tests);
+    test_step.dependOn(&run_abi_tests.step);
+
+    // Run every test/<name>/test.php against the local PHP 8.0 binary.
+    if (target.result.os.tag == .linux) {
+        const run_ext = b.step("test-ext", "Run PHP test extensions");
+        run_ext.dependOn(b.getInstallStep());
+        for (test_extensions) |ext| {
+            const cmd = b.addSystemCommand(&.{
+                "linux-bin/php7/bin/php",
+                "-n",
+                "-d",
+                b.fmt("extension=./zig-out/lib/lib{s}.so", .{ext.name}),
+                b.fmt("{s}/test.php", .{ext.dir}),
+            });
+            run_ext.dependOn(&cmd.step);
+        }
+    }
 }
 
 pub fn link(b: *std.Build, lib: *std.Build.Step.Compile, php_path: []const u8) void {

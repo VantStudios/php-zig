@@ -14,8 +14,6 @@ pub const zend_internal_arg_info = extern struct {
     default_value: ?[*:0]const u8,
 };
 
-pub const zend_frameless_function_info = opaque {};
-
 pub const zend_function_entry = extern struct {
     fname: ?[*:0]const u8,
     handler: ?*const fn (?*zend_execute_data, ?*zval) callconv(.c) void,
@@ -62,9 +60,15 @@ pub const ModuleOptions = struct {
     request_shutdown_func: ?*const fn (c_int, c_int) callconv(.c) c_int = null,
 };
 
+/// The first `zend_internal_arg_info` entry of a function describes its return
+/// type. PHP marks it with the magic name `(const char*)-1`; without that
+/// marker the return type is silently ignored. The pointer is never
+/// dereferenced by PHP — only its value is compared.
+pub const RETURN_INFO_MARKER: [*:0]const u8 = @ptrFromInt(~@as(usize, 0));
+
 pub fn returnInfo(type_mask: u32) zend_internal_arg_info {
     return .{
-        .name = "",
+        .name = RETURN_INFO_MARKER,
         .type_ = .{ .ptr = null, .type_mask = type_mask },
         .default_value = null,
     };
@@ -78,7 +82,11 @@ pub fn paramInfo(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
     };
 }
 
-pub fn paramInfoOptional(name: [*:0]const u8, type_mask: u32, default_value: [*:0]const u8) zend_internal_arg_info {
+pub fn paramInfoOptional(
+    name: [*:0]const u8,
+    type_mask: u32,
+    default_value: [*:0]const u8,
+) zend_internal_arg_info {
     return .{
         .name = name,
         .type_ = .{ .ptr = null, .type_mask = type_mask },
@@ -106,8 +114,8 @@ pub fn createModule(opts: ModuleOptions) zend_module_entry {
         .functions = opts.functions,
         .module_startup_func = opts.module_startup_func,
         .module_shutdown_func = opts.module_shutdown_func,
-        .request_startup_func = opts.request_shutdown_func,
-        .request_shutdown_func = opts.request_startup_func,
+        .request_startup_func = opts.request_startup_func,
+        .request_shutdown_func = opts.request_shutdown_func,
         .info_func = null,
         .version = opts.version,
         .globals_size = 0,
