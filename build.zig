@@ -6,6 +6,7 @@ const test_extensions = [_]struct { name: []const u8, dir: []const u8 }{
     .{ .name = "php_zig_strings", .dir = "test/strings" },
     .{ .name = "php_zig_constants", .dir = "test/constants" },
     .{ .name = "php_zig_lowlevel", .dir = "test/lowlevel" },
+    .{ .name = "php_zig_errors", .dir = "test/errors" },
 };
 
 pub fn build(b: *std.Build) void {
@@ -17,6 +18,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // Cross-platform linking: on Windows the extension links php8ts.lib from
+    // <php_path>/dev (defaults to the bundled win-bin dev pack).
+    const php_path = b.option([]const u8, "php-path", "Path to the PHP install (Windows dev pack parent)") orelse
+        if (target.result.os.tag == .windows) "win-bin/php" else "";
 
     // Test PHP extensions, one dynamic library per folder under test/.
     for (test_extensions) |ext| {
@@ -31,7 +37,7 @@ pub fn build(b: *std.Build) void {
                 .imports = &.{.{ .name = "php", .module = mod }},
             }),
         });
-        link(b, lib, "");
+        link(b, lib, php_path);
         b.installArtifact(lib);
     }
 

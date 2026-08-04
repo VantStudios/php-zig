@@ -18,6 +18,7 @@ pub const hash = @import("hash.zig");
 pub const params = @import("params.zig");
 pub const module = @import("module.zig");
 pub const constants = @import("constants.zig");
+pub const errors = @import("errors.zig");
 pub const helpers = @import("helpers.zig");
 
 // --- Types ---
@@ -73,6 +74,28 @@ pub const registerString = constants.registerString;
 pub const registerBool = constants.registerBool;
 pub const CONST_CS = constants.CONST_CS;
 pub const CONST_PERSISTENT = constants.CONST_PERSISTENT;
+
+// --- Errors and exceptions ---
+pub const throwException = errors.throwException;
+pub const throwError = errors.throwError;
+pub const throwTypeError = errors.throwTypeError;
+pub const throwValueError = errors.throwValueError;
+pub const phpError = errors.phpError;
+pub const E_ERROR = errors.E_ERROR;
+pub const E_WARNING = errors.E_WARNING;
+pub const E_PARSE = errors.E_PARSE;
+pub const E_NOTICE = errors.E_NOTICE;
+pub const E_CORE_ERROR = errors.E_CORE_ERROR;
+pub const E_CORE_WARNING = errors.E_CORE_WARNING;
+pub const E_COMPILE_ERROR = errors.E_COMPILE_ERROR;
+pub const E_COMPILE_WARNING = errors.E_COMPILE_WARNING;
+pub const E_USER_ERROR = errors.E_USER_ERROR;
+pub const E_USER_WARNING = errors.E_USER_WARNING;
+pub const E_USER_NOTICE = errors.E_USER_NOTICE;
+pub const E_RECOVERABLE_ERROR = errors.E_RECOVERABLE_ERROR;
+pub const E_DEPRECATED = errors.E_DEPRECATED;
+pub const E_USER_DEPRECATED = errors.E_USER_DEPRECATED;
+pub const E_ALL = errors.E_ALL;
 
 // --- Parameters ---
 pub const getArg = params.getArg;

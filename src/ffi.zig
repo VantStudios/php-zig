@@ -158,3 +158,22 @@ pub extern fn zend_register_bool_constant(
     flags: c_int,
     module_number: c_int,
 ) ?*anyopaque;
+
+// Exceptions and error reporting (zend_exceptions.h / zend_error).
+//
+// Unlike `_zend_new_array@@8` and friends, these exports are *undecorated* on
+// Windows too (verified with `objdump -p win-bin/php/php8ts.dll`), so plain
+// `extern fn` declarations resolve on both platforms.
+pub extern fn zend_throw_exception(ce: ?*anyopaque, message: [*:0]const u8, code: i64) void;
+pub extern fn zend_throw_error(ce: ?*anyopaque, message: [*:0]const u8) void;
+pub extern fn zend_throw_exception_ex(ce: ?*anyopaque, code: i64, format: [*:0]const u8, ...) void;
+pub extern fn zend_error(type_: c_int, format: [*:0]const u8, ...) void;
+
+// Built-in exception/error class entries (data symbols, plain on both OSes).
+// Each is a `zend_class_entry *` global, so the extern var holds the pointer
+// value. Opaque: the full `zend_class_entry` struct belongs to the classes
+// feature.
+pub extern var zend_ce_exception: ?*anyopaque;
+pub extern var zend_ce_error: ?*anyopaque;
+pub extern var zend_ce_type_error: ?*anyopaque;
+pub extern var zend_ce_value_error: ?*anyopaque;
