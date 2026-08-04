@@ -64,15 +64,24 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_abi_tests.step);
 
     // Run every test/<name>/test.php against the local PHP 8.0 binary.
-    if (target.result.os.tag == .linux) {
+    const php_bin: ?[]const u8 = switch (target.result.os.tag) {
+        .linux => "linux-bin/php7/bin/php",
+        .windows => "win-bin/php/php.exe",
+        else => null,
+    };
+    if (php_bin) |bin| {
         const run_ext = b.step("test-ext", "Run PHP test extensions");
         run_ext.dependOn(b.getInstallStep());
         for (test_extensions) |ext| {
+            const ext_path = if (target.result.os.tag == .windows)
+                b.fmt("extension=./zig-out/bin/{s}.dll", .{ext.name})
+            else
+                b.fmt("extension=./zig-out/lib/lib{s}.so", .{ext.name});
             const cmd = b.addSystemCommand(&.{
-                "linux-bin/php7/bin/php",
+                bin,
                 "-n",
                 "-d",
-                b.fmt("extension=./zig-out/lib/lib{s}.so", .{ext.name}),
+                ext_path,
                 b.fmt("{s}/test.php", .{ext.dir}),
             });
             run_ext.dependOn(&cmd.step);
