@@ -128,4 +128,22 @@ pub const zend_reference = extern struct {
     sources: zend_property_info_source_list,
 };
 
-pub const zend_execute_data = opaque {};
+/// The `zend_execute_data` struct (PHP 8.0). Single source of truth: the
+/// argument-offset math in `src/params.zig` derives from `@sizeOf(this)`.
+///
+/// Zend stores a call's argument zvals immediately after the struct in the
+/// same allocation, so argument N (1-based) sits at
+/// `execute_data + @sizeOf(zend_execute_data) + (N-1)`. The first fields up to
+/// `this` match the C layout exactly; the trailing pointers are the remaining
+/// public members of PHP 8.0's `_zend_execute_data`.
+pub const zend_execute_data = extern struct {
+    opline: ?*anyopaque,
+    call: ?*anyopaque,
+    return_value: ?*zval,
+    func: ?*anyopaque,
+    this: zval,
+    prev_execute_data: ?*anyopaque,
+    symbol_table: ?*anyopaque,
+    run_time_cache: ?*anyopaque,
+    extra_named_params: ?*anyopaque,
+};

@@ -74,74 +74,92 @@ pub fn build(b: *std.Build) void {
 const php = @import("php");
 
 // --- Arginfo ---
-const arginfo_hello = [_]php.zend_internal_arg_info{
-    php.returnInfo(php.MAY_BE_STRING),
-    php.paramInfo("name", php.MAY_BE_STRING),
+const arginfo_hello = [_]php.module.zend_internal_arg_info{
+    php.module.returnInfo(php.types.MAY_BE_STRING),
+    php.module.paramInfo("name", php.types.MAY_BE_STRING),
 };
 
 // --- Handler ---
 fn php_hello(
-    execute_data: ?*php.zend_execute_data,
-    return_value: ?*php.zval,
+    execute_data: ?*php.types.zend_execute_data,
+    return_value: ?*php.types.zval,
 ) callconv(.c) void {
-    const param = php.getArg(execute_data, 1) orelse return php.returnNull(return_value);
-    const name = param.toString() orelse return php.returnNull(return_value);
-    php.returnString(return_value, name);
+    const param = php.params.getArg(execute_data, 1) orelse
+        return php.helpers.returnNull(return_value);
+    const name = param.toString() orelse return php.helpers.returnNull(return_value);
+    php.helpers.returnString(return_value, name);
 }
 
 // --- Function table ---
-const extension_functions = [_]php.zend_function_entry{
+const extension_functions = [_]php.module.zend_function_entry{
     .{
         .fname = "hello",
         .handler = php_hello,
-        .arg_info = @ptrCast(&arginfo_hello),
+        .arg_info = &arginfo_hello,
         .num_args = 1,
         .flags = 0,
     },
-    php.function_entry_end,
+    php.module.function_entry_end,
 };
 
 // --- Module entry ---
-export var my_module_entry = php.createModule(.{
+export var my_module_entry = php.module.createModule(.{
     .name = "my_extension",
     .version = "1.0.0",
     .functions = &extension_functions,
 });
 
-export fn get_module() *php.zend_module_entry {
+export fn get_module() *php.module.zend_module_entry {
     return &my_module_entry;
 }
 ```
+
+| Symbol               | Lives at                                            |
+| -------------------- | --------------------------------------------------- |
+| `zval` type          | `php.types.zval`                                    |
+| `IS_*` constants     | `php.types.IS_LONG`, ...                            |
+| `MAY_BE_*` constants | `php.types.MAY_BE_STRING`                           |
+| arginfo helpers      | `php.module.returnInfo`, `php.module.paramInfo*`    |
+| zval operations      | `php.zval.setLong`, ...                             |
+| ergonomic wrappers   | `php.helpers.returnLong`, ...                       |
+| argument access      | `php.params.getArg`, `php.params.getArgCount`       |
+| hash tables          | `php.hash.pushString`, ...                          |
+| errors/exceptions    | `php.errors.throwException`, `php.errors.E_WARNING` |
+| constants            | `php.constants.registerLong`                        |
+| raw FFI              | `php.ffi._emalloc`, ...                             |
 
 ## API Reference
 
 ### Types
 
-| Type                     | Description           |
-| ------------------------ | --------------------- |
-| `zval`                   | PHP value container   |
-| `zend_array`             | PHP array / HashTable |
-| `zend_string`            | PHP string            |
-| `zend_execute_data`      | Function call context |
-| `zend_module_entry`      | Module descriptor     |
-| `zend_function_entry`    | Function descriptor   |
-| `zend_internal_arg_info` | Argument type info    |
+| Type                     | Lives at                            | Description            |
+| ------------------------ | ----------------------------------- | ---------------------- |
+| `zval`                   | `php.types.zval`                    | PHP value container    |
+| `zend_array`             | `php.types.zend_array`              | PHP array / HashTable  |
+| `zend_string`            | `php.types.zend_string`             | PHP string             |
+| `zend_execute_data`      | `php.types.zend_execute_data`       | Function call context  |
+| `zend_module_entry`      | `php.module.zend_module_entry`      | Module descriptor      |
+| `zend_function_entry`    | `php.module.zend_function_entry`    | Function descriptor    |
+| `zend_internal_arg_info` | `php.module.zend_internal_arg_info` | Argument type info     |
+| `zend_reference`         | `php.types.zend_reference`          | Reference box (`&`)    |
+| `Param`                  | `php.params.Param`                  | Borrowed argument view |
+| `ArrayIter`              | `php.hash.ArrayIter`                | Array iterator         |
 
 ### Type Constants
 
 ```zig
-IS_NULL, IS_FALSE, IS_TRUE, IS_LONG, IS_DOUBLE, IS_STRING, IS_ARRAY, IS_OBJECT
+php.types.IS_NULL, IS_FALSE, IS_TRUE, IS_LONG, IS_DOUBLE, IS_STRING,
+php.types.IS_ARRAY, IS_OBJECT, IS_RESOURCE, IS_REFERENCE
 ```
 
-The `zval` struct itself lives at `php.types.zval`; `php.zval` is the module of
-operations on it. `zval.u1.type_info` packs `type | (flags << 8)` — use
+`zval.u1.type_info` packs `type | (flags << 8)` — use
 `php.zval.typeInfo(type, flags)` instead of hardcoding values.
 
 ### MAY*BE*\* Constants (for arginfo)
 
 ```zig
-MAY_BE_NULL, MAY_BE_FALSE, MAY_BE_TRUE, MAY_BE_LONG,
-MAY_BE_DOUBLE, MAY_BE_STRING, MAY_BE_ARRAY, MAY_BE_OBJECT
+php.types.MAY_BE_NULL, MAY_BE_FALSE, MAY_BE_TRUE, MAY_BE_LONG,
+php.types.MAY_BE_DOUBLE, MAY_BE_STRING, MAY_BE_ARRAY, MAY_BE_OBJECT
 ```
 
 ### Module
@@ -182,10 +200,10 @@ these faithfully (`ReflectionParameter::isPassedByReference()`, `isVariadic()`).
 
 ```zig
 // zval reference helpers
-pub const isRef = zval.isRef;        // zval.u1.v.type == IS_REFERENCE
-pub const makeRef = zval.makeRef;    // ZVAL_MAKE_REF — box zv in place (_emalloc)
-pub const derefValue = zval.derefValue; // pointer to the boxed zval
-pub const gcReference = zval.GC_REFERENCE; // 26 = IS_REFERENCE | GC_NOT_COLLECTABLE
+php.zval.isRef;          // zval.u1.v.type == IS_REFERENCE
+php.zval.makeRef;        // ZVAL_MAKE_REF — box zv in place (_emalloc)
+php.zval.derefValue;     // pointer to the boxed zval
+php.zval.GC_REFERENCE;   // 26 = IS_REFERENCE | GC_NOT_COLLECTABLE
 ```
 
 `zend_reference` is a 32-byte box (`gc` + `val` + `sources`) built by hand with
@@ -196,62 +214,62 @@ zval's current payload into the box without an incref. `Param` gains `isRef()` /
 ### Return Helpers
 
 ```zig
-pub fn returnNull(return_value: ?*zval) void
-pub fn returnTrue(return_value: ?*zval) void
-pub fn returnFalse(return_value: ?*zval) void
-pub fn returnLong(return_value: ?*zval, val: i64) void
-pub fn returnDouble(return_value: ?*zval, val: f64) void
-pub fn returnString(return_value: ?*zval, s: []const u8) void
-pub fn returnStringZ(return_value: ?*zval, s: [*:0]const u8) void
-pub fn returnArray(return_value: ?*zval, reserve: u32) void
+php.helpers.returnNull(return_value: ?*zval) void
+php.helpers.returnTrue(return_value: ?*zval) void
+php.helpers.returnFalse(return_value: ?*zval) void
+php.helpers.returnLong(return_value: ?*zval, val: i64) void
+php.helpers.returnDouble(return_value: ?*zval, val: f64) void
+php.helpers.returnString(return_value: ?*zval, s: []const u8) void
+php.helpers.returnStringZ(return_value: ?*zval, s: [*:0]const u8) void
+php.helpers.returnArray(return_value: ?*zval, reserve: u32) void
 ```
 
 ### Array Helpers (numeric index)
 
 ```zig
-pub fn arrayPushNull(arr: ?*zval) void
-pub fn arrayPushBool(arr: ?*zval, val: bool) void
-pub fn arrayPushLong(arr: ?*zval, val: i64) void
-pub fn arrayPushDouble(arr: ?*zval, val: f64) void
-pub fn arrayPushString(arr: ?*zval, val: []const u8) void   // binary-safe
-pub fn arrayPushStringZ(arr: ?*zval, val: [*:0]const u8) void
-pub fn arrayPushArray(parent: ?*zval, child: *zval) void
+php.helpers.arrayPushNull(arr: ?*zval) void
+php.helpers.arrayPushBool(arr: ?*zval, val: bool) void
+php.helpers.arrayPushLong(arr: ?*zval, val: i64) void
+php.helpers.arrayPushDouble(arr: ?*zval, val: f64) void
+php.helpers.arrayPushString(arr: ?*zval, val: []const u8) void   // binary-safe
+php.helpers.arrayPushStringZ(arr: ?*zval, val: [*:0]const u8) void
+php.helpers.arrayPushArray(parent: ?*zval, child: *zval) void
 ```
 
 ### Array Helpers (string key)
 
 ```zig
-pub fn arraySetNull(arr: ?*zval, key: [*:0]const u8) void
-pub fn arraySetBool(arr: ?*zval, key: [*:0]const u8, val: bool) void
-pub fn arraySetLong(arr: ?*zval, key: [*:0]const u8, val: i64) void
-pub fn arraySetDouble(arr: ?*zval, key: [*:0]const u8, val: f64) void
-pub fn arraySetString(arr: ?*zval, key: [*:0]const u8, val: []const u8) void
-pub fn arraySetStringZ(arr: ?*zval, key: [*:0]const u8, val: [*:0]const u8) void
-pub fn arraySetArray(parent: ?*zval, key: [*:0]const u8, child: *zval) void
+php.helpers.arraySetNull(arr: ?*zval, key: []const u8) void
+php.helpers.arraySetBool(arr: ?*zval, key: []const u8, val: bool) void
+php.helpers.arraySetLong(arr: ?*zval, key: []const u8, val: i64) void
+php.helpers.arraySetDouble(arr: ?*zval, key: []const u8, val: f64) void
+php.helpers.arraySetString(arr: ?*zval, key: []const u8, val: []const u8) void
+php.helpers.arraySetStringZ(arr: ?*zval, key: []const u8, val: [*:0]const u8) void
+php.helpers.arraySetArray(parent: ?*zval, key: []const u8, child: *zval) void
 ```
 
-String values are binary-safe (`[]const u8`); the `*Z` variants take
-null-terminated C strings. Keys must be null-terminated (`[*:0]const u8`).
+String values are binary-safe (`[]const u8`); the `*Z` variants take null-terminated C
+strings. Keys are binary-safe `[]const u8` (PHP array keys may contain `\0`).
 
 ### Array Creation
 
 ```zig
 // Create a new zval of type array ready to insert into another array
-pub fn newArrayZval(reserve: u32) zval
+php.helpers.newArrayZval(reserve: u32) zval
 ```
 
 The returned zval owns one reference. Pass it to `arrayPushArray` /
-`arraySetArray` (which take a copy, keeping it usable) or to the raw
-`hash.pushArrayOwned` / `hash.setArrayOwned` (which move it).
+`arraySetArray` (which take a copy, keeping it usable) or to `php.hash.pushArrayOwned` /
+`php.hash.setArrayOwned` (which move it).
 
 ### Reading Parameters
 
 ```zig
 // Get argument N (1-based) from execute_data
-pub fn getArg(execute_data: ?*zend_execute_data, n: usize) ?Param
+php.params.getArg(execute_data: ?*zend_execute_data, n: usize) ?Param
 
 // Get number of arguments passed by PHP
-pub fn getArgCount(execute_data: ?*zend_execute_data) u32
+php.params.getArgCount(execute_data: ?*zend_execute_data) u32
 
 // Param methods:
 pub fn paramType(self: Param) ParamType
@@ -260,13 +278,16 @@ pub fn toDouble(self: Param) ?f64
 pub fn toBool(self: Param) ?bool
 pub fn toString(self: Param) ?[]const u8
 pub fn toArray(self: Param) ?*zend_array
+pub fn isRef(self: Param) bool
+pub fn deref(self: Param) *zval
+pub fn toRef(self: Param) ?*zend_reference
 pub fn raw(self: Param) *zval
 ```
 
 ### Array Iteration
 
 ```zig
-var iter = ArrayIter.init(arr);
+var iter = php.hash.ArrayIter.init(arr);
 while (iter.next()) |entry| {
     // entry.key  — ArrayKey (.index: i64 or .string: []const u8)
     // entry.value — *zval
@@ -283,10 +304,10 @@ each yielded element.
 Register constants from `module_startup_func`:
 
 ```zig
-pub fn registerLong(name: [*:0]const u8, value: i64, module_number: c_int) void
-pub fn registerDouble(name: [*:0]const u8, value: f64, module_number: c_int) void
-pub fn registerString(name: [*:0]const u8, value: [*:0]const u8, module_number: c_int) void
-pub fn registerBool(name: [*:0]const u8, value: bool, module_number: c_int) void
+php.constants.registerLong(name: [*:0]const u8, value: i64, module_number: c_int) void
+php.constants.registerDouble(name: [*:0]const u8, value: f64, module_number: c_int) void
+php.constants.registerString(name: [*:0]const u8, value: [*:0]const u8, module_number: c_int) void
+php.constants.registerBool(name: [*:0]const u8, value: bool, module_number: c_int) void
 ```
 
 Example:
@@ -294,8 +315,8 @@ Example:
 ```zig
 fn module_startup(type_: c_int, module_number: c_int) callconv(.c) c_int {
     _ = type_;
-    php.registerLong("MY_EXT_VERSION", 1, module_number);
-    php.registerString("MY_EXT_NAME", "my_extension", module_number);
+    php.constants.registerLong("MY_EXT_VERSION", 1, module_number);
+    php.constants.registerString("MY_EXT_NAME", "my_extension", module_number);
     return 1;
 }
 ```
@@ -305,53 +326,64 @@ fn module_startup(type_: c_int, module_number: c_int) callconv(.c) c_int {
 The helpers above are thin wrappers — nothing is hidden. Every submodule is
 public and exposes the raw primitives for power users:
 
-| Module          | Contents                                                                                                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `php.ffi`       | Every raw `extern fn` / `@extern` against PHP (cross-platform names, incl. Windows `@@N` decoration). `externDecl` resolves a symbol name per-OS.                                     |
-| `php.types`     | Hand-rolled `extern struct`s matching the PHP 8.0 ZTS ABI + `IS_*`/`MAY_BE_*` constants. The `zval` type lives here.                                                                  |
-| `php.zval`      | zval operations: `setNull/True/False/Long/Double/String/Array`, `getType`, `typeInfo`, `copy`, `addRef`, `release`, `isRefcounted`, `isRef`, `makeRef`, `derefValue`.               |
-| `php.string`    | `zend_string` allocation/viewing: `alloc`, `dup`, `free`, `slice`. Strings are built with `_emalloc`/`_efree` because `zend_string_init` is not exported by the Linux PHP 8.0 binary. |
-| `php.hash`      | Hash-table ops: `push*`/`set*`, `pushArrayOwned`/`setArrayOwned` (move), `findStringKey`, `findIndex`, `count`, `ArrayIter`, `ArrayKey`, `ArrayEntry`.                                |
-| `php.params`    | `Param` (borrowed zval view), `getArg`, `getArgCount`, `isRef`/`deref`/`toRef`. Argument lookup walks the raw `execute_data` layout — documented at the site.                         |
-| `php.module`    | `zend_module_entry`, `zend_function_entry`, `zend_internal_arg_info`, `createModule`, arginfo helpers (incl. by-ref/variadic), `ZEND_API`/`BUILD_ID`.                                  |
-| `php.constants` | `registerLong/Double/String/Bool`, `CONST_CS`, `CONST_PERSISTENT`. |
-| `php.errors` | Error levels (`E_WARNING`, ...), `throwException/throwError/throwTypeError/throwValueError`, `phpError`. Uses the built-in `Exception`/`Error` class entries. |
+| Module          | Contents                                                                                                                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `php.ffi`       | Every raw `extern fn` / `@extern` against PHP (cross-platform names, incl. Windows `@@N` decoration). `externDecl` resolves a symbol name per-OS.                                        |
+| `php.types`     | Hand-rolled `extern struct`s matching the PHP 8.0 ZTS ABI + `IS_*`/`MAY_BE_*` constants. The `zval` type lives here.                                                                     |
+| `php.zval`      | zval operations: `setNull/True/False/Long/Double/String/Array`, `getType`, `typeInfo`, `copy`, `addRef`, `release`, `isRefcounted`, `isRef`, `makeRef`, `derefValue`.                    |
+| `php.string`    | `zend_string` allocation/viewing: `alloc`, `dup`, `free`, `slice`. Strings are built with `_emalloc`/`_efree` because `zend_string_init` is not exported by the Linux PHP 8.0 binary.    |
+| `php.hash`      | Hash-table ops: `push*`/`set*`, `pushArrayOwned`/`setArrayOwned` (move), `findString` (binary-safe keys), `findIndex`, `count`, `ArrayIter`, `ArrayKey`, `ArrayEntry`.                   |
+| `php.params`    | `Param` (borrowed zval view), `getArg`, `getArgCount`, `isRef`/`deref`/`toRef`. Argument lookup derives the offset from `@sizeOf(types.zend_execute_data)` — the single source of truth. |
+| `php.module`    | `zend_module_entry`, `zend_function_entry`, `zend_internal_arg_info`, `createModule`, arginfo helpers (incl. by-ref/variadic), `ZEND_API`/`BUILD_ID`.                                    |
+| `php.constants` | `registerLong/Double/String/Bool`, `CONST_CS`, `CONST_PERSISTENT`.                                                                                                                       |
+| `php.errors`    | Error levels (`E_WARNING`, ...), `throwException/throwError/throwTypeError/throwValueError`, `phpError`. Uses the built-in `Exception`/`Error` class entries.                            |
 
 ### Ownership model
 
-- `zval.addRef` / `zval.release` are the explicit reference primitives.
-- `arrayPushArray`/`arraySetArray` copy via `zval.copy` (the array takes a new
+- `php.zval.isRefcounted`, `php.zval.addRef`, `php.zval.release` are the explicit reference primitives.
+- `arrayPushArray`/`arraySetArray` copy via `php.zval.copy` (the array takes a new
   reference; your zval stays valid).
-- `hash.pushArrayOwned`/`hash.setArrayOwned` transfer ownership (the array owns
+- `php.hash.pushArrayOwned`/`php.hash.setArrayOwned` transfer ownership (the array owns
   the reference; do not touch the source afterwards).
 - `newArrayZval` returns a zval you own; hand it to a `*Owned` helper to move it.
+- `php.zval.makeRef` moves the current payload into a reference box without an incref.
 
 ## Tests
 
 Comptime ABI-layout checks (no PHP needed):
 
 ```sh
-~/.zvm/0.16.0/zig build test
+zig build test
 ```
 
-The `test/` folder holds six runnable PHP extensions (each with a
+The `test/` folder holds seven runnable PHP extensions (each with a
 `main.zig` + `test.php` consumer), covering the helper layer and the
 low-level primitives:
 
-| Extension   | Exercises                                                |
-| ----------- | -------------------------------------------------------- |
-| `hello`     | module entry, arginfo, scalar returns, arguments         |
-| `arrays`    | array build/push/set, `ArrayIter`, lookups, owned moves  |
-| `strings`   | binary-safe returns, hand-allocated `zend_string`s       |
-| `constants` | constant registration in module startup, optional params |
-| `lowlevel` | raw FFI calls, hand-built zvals, explicit refcounts |
-| `errors` | throwing exceptions/errors, `phpError` levels via a user error handler |
-| `references` | by-ref mutation (`&`), variadic args, reflection reporting |
+| Extension    | Exercises                                                              |
+| ------------ | ---------------------------------------------------------------------- |
+| `hello`      | module entry, arginfo, scalar returns, arguments                       |
+| `arrays`     | array build/push/set, `ArrayIter`, lookups, owned moves                |
+| `strings`    | binary-safe returns, hand-allocated `zend_string`s                     |
+| `constants`  | constant registration in module startup, optional params               |
+| `lowlevel`   | raw FFI calls, hand-built zvals, explicit refcounts                    |
+| `errors`     | throwing exceptions/errors, `phpError` levels via a user error handler |
+| `references` | by-ref mutation (`&`), variadic args, reflection reporting             |
 
-Run them against the local PHP 8.0 binary:
+Run them against the local PHP 8.0 ZTS binary. You must have the PHP 8.0
+binaries available — the same ones used for development, from
+[PHP-Binaries](https://github.com/Benedikt05/PHP-Binaries) (BetterAltay's PHP 8.0
+builds). Place them in the repo root in a folder named after your platform:
+
+| Platform | Repo-root folder | Expected layout inside                        |
+| -------- | ---------------- | --------------------------------------------- |
+| Linux    | `linux-bin/`     | `linux-bin/php7/bin/php` (8.0.13 ZTS binary)  |
+| Windows  | `win-bin/`       | `win-bin/php/` — the dev pack (`php.exe`, `dev/php8ts.lib`) |
+
+Then run:
 
 ```sh
-~/.zvm/0.16.0/zig build test-ext
+zig build test-ext
 ```
 
 Or invoke one by hand from the repo root:

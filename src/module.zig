@@ -1,9 +1,9 @@
 const builtin = @import("builtin");
 
 const types = @import("types.zig");
-pub const zval = types.zval;
-pub const zend_type = types.zend_type;
-pub const zend_execute_data = types.zend_execute_data;
+const zval = types.zval;
+const zend_type = types.zend_type;
+const zend_execute_data = types.zend_execute_data;
 
 pub const BUILD_ID = if (builtin.os.tag == .windows) "API20200930,TS,VS16" else "API20200930,TS";
 pub const ZEND_API = 20200930;
@@ -60,10 +60,9 @@ pub const ModuleOptions = struct {
     request_shutdown_func: ?*const fn (c_int, c_int) callconv(.c) c_int = null,
 };
 
-/// The first `zend_internal_arg_info` entry of a function describes its return
-/// type. PHP marks it with the magic name `(const char*)-1`; without that
-/// marker the return type is silently ignored. The pointer is never
-/// dereferenced by PHP — only its value is compared.
+/// First `zend_internal_arg_info` entry describes the return type, marked with
+/// the magic name `(const char*)-1`; without it the return type is ignored.
+/// The pointer is never dereferenced — only its value is compared.
 pub const RETURN_INFO_MARKER: [*:0]const u8 = @ptrFromInt(~@as(usize, 0));
 
 pub fn returnInfo(type_mask: u32) zend_internal_arg_info {
@@ -116,12 +115,12 @@ fn maskWith(extra: u32, type_mask: u32) u32 {
     return type_mask | extra;
 }
 
-/// A parameter passed by reference (`&$name`).
+/// Parameter passed by reference (`&$name`).
 pub fn paramInfoByRef(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
     return paramInfo(name, maskWith(ZEND_SEND_BY_REF, type_mask));
 }
 
-/// A by-reference parameter with a default value.
+/// By-reference parameter with a default value.
 pub fn paramInfoByRefOptional(
     name: [*:0]const u8,
     type_mask: u32,
@@ -130,12 +129,12 @@ pub fn paramInfoByRefOptional(
     return paramInfoOptional(name, maskWith(ZEND_SEND_BY_REF, type_mask), default_value);
 }
 
-/// A variadic parameter (`...$name`).
+/// Variadic parameter (`...$name`).
 pub fn paramInfoVariadic(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
     return paramInfo(name, maskWith(ZEND_IS_VARIADIC_BIT, type_mask));
 }
 
-/// A variadic by-reference parameter (`...&$name`).
+/// Variadic by-reference parameter (`...&$name`).
 pub fn paramInfoVariadicByRef(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
     return paramInfo(name, maskWith(ZEND_SEND_BY_REF | ZEND_IS_VARIADIC_BIT, type_mask));
 }

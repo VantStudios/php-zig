@@ -1,20 +1,18 @@
-const std = @import("std");
-
 const ffi = @import("ffi.zig");
 const string = @import("string.zig");
 const zval_mod = @import("zval.zig");
 
 const types = @import("types.zig");
-pub const zval = types.zval;
-pub const zend_array = types.zend_array;
-pub const zend_string = types.zend_string;
+const zval = types.zval;
+const zend_array = types.zend_array;
+const zend_string = types.zend_string;
 
 pub const HashPosition = ffi.HashPosition;
 pub const HASH_KEY_IS_STRING = ffi.HASH_KEY_IS_STRING;
 pub const HASH_KEY_IS_LONG = ffi.HASH_KEY_IS_LONG;
 pub const HASH_KEY_NON_EXISTENT = ffi.HASH_KEY_NON_EXISTENT;
 
-/// Appends a value to `arr` by the next numeric index.
+/// Appends a value by the next numeric index.
 pub fn pushNull(arr: *zval) void {
     _ = ffi.add_next_index_null(arr);
 }
@@ -41,10 +39,8 @@ pub fn pushStringZ(arr: *zval, val: [*:0]const u8) void {
     _ = ffi.add_next_index_string(arr, val);
 }
 
-/// Inserts `child` by the next numeric index, keeping `child` usable.
-///
-/// The array takes a new reference (`zval.copy`), so the caller keeps
-/// ownership of `child` and may `release` it later.
+/// Inserts `child` by numeric index, taking a new reference (caller keeps
+/// ownership of `child`).
 pub fn pushArray(arr: *zval, child: *zval) void {
     const target = arr.value.arr orelse return;
     var child_copy: zval = undefined;
@@ -52,63 +48,60 @@ pub fn pushArray(arr: *zval, child: *zval) void {
     _ = ffi.zend_hash_next_index_insert(target, &child_copy);
 }
 
-/// Moves `child` into `arr` by the next numeric index.
-///
-/// Ownership transfers: the array now owns `child`'s reference and the caller
-/// must not use or `release` `child` afterwards.
+/// Moves `child` into `arr`; ownership transfers, `child` must not be reused.
 pub fn pushArrayOwned(arr: *zval, child: *zval) void {
     const target = arr.value.arr orelse return;
     _ = ffi.zend_hash_next_index_insert(target, child);
 }
 
-/// Assigns `key => value` on `arr`. Keys must be null-terminated.
-pub fn setNull(arr: *zval, key: [*:0]const u8) void {
-    _ = ffi.add_assoc_null_ex(arr, key, std.mem.len(key));
+/// Assigns `key => value`. Keys are binary-safe slices.
+pub fn setNull(arr: *zval, key: []const u8) void {
+    _ = ffi.add_assoc_null_ex(arr, key.ptr, key.len);
 }
 
-pub fn setBool(arr: *zval, key: [*:0]const u8, val: bool) void {
-    _ = ffi.add_assoc_bool_ex(arr, key, std.mem.len(key), if (val) 1 else 0);
+pub fn setBool(arr: *zval, key: []const u8, val: bool) void {
+    _ = ffi.add_assoc_bool_ex(arr, key.ptr, key.len, if (val) 1 else 0);
 }
 
-pub fn setLong(arr: *zval, key: [*:0]const u8, val: i64) void {
-    _ = ffi.add_assoc_long_ex(arr, key, std.mem.len(key), val);
+pub fn setLong(arr: *zval, key: []const u8, val: i64) void {
+    _ = ffi.add_assoc_long_ex(arr, key.ptr, key.len, val);
 }
 
-pub fn setDouble(arr: *zval, key: [*:0]const u8, val: f64) void {
-    _ = ffi.add_assoc_double_ex(arr, key, std.mem.len(key), val);
+pub fn setDouble(arr: *zval, key: []const u8, val: f64) void {
+    _ = ffi.add_assoc_double_ex(arr, key.ptr, key.len, val);
 }
 
 /// Assigns a binary-safe string value under `key`.
-pub fn setString(arr: *zval, key: [*:0]const u8, val: []const u8) void {
-    _ = ffi.add_assoc_stringl_ex(arr, key, std.mem.len(key), val.ptr, val.len);
+pub fn setString(arr: *zval, key: []const u8, val: []const u8) void {
+    _ = ffi.add_assoc_stringl_ex(arr, key.ptr, key.len, val.ptr, val.len);
 }
 
 /// Assigns a null-terminated string value under `key`.
-pub fn setStringZ(arr: *zval, key: [*:0]const u8, val: [*:0]const u8) void {
-    _ = ffi.add_assoc_string_ex(arr, key, std.mem.len(key), val);
+pub fn setStringZ(arr: *zval, key: []const u8, val: [*:0]const u8) void {
+    _ = ffi.add_assoc_string_ex(arr, key.ptr, key.len, val);
 }
 
-/// Assigns `child` under `key`, keeping `child` usable (see `pushArray`).
-pub fn setArray(arr: *zval, key: [*:0]const u8, child: *zval) void {
+/// Assigns `child` under `key`, taking a new reference (caller keeps ownership).
+pub fn setArray(arr: *zval, key: []const u8, child: *zval) void {
     const target = arr.value.arr orelse return;
     var child_copy: zval = undefined;
     zval_mod.copy(&child_copy, child);
-    _ = ffi.zend_hash_str_update(target, key, std.mem.len(key), &child_copy);
+    _ = ffi.zend_hash_str_update(target, key.ptr, key.len, &child_copy);
 }
 
-/// Moves `child` under `key` (see `pushArrayOwned`).
-pub fn setArrayOwned(arr: *zval, key: [*:0]const u8, child: *zval) void {
+/// Moves `child` under `key`; ownership transfers, `child` must not be reused.
+pub fn setArrayOwned(arr: *zval, key: []const u8, child: *zval) void {
     const target = arr.value.arr orelse return;
-    _ = ffi.zend_hash_str_update(target, key, std.mem.len(key), child);
+    _ = ffi.zend_hash_str_update(target, key.ptr, key.len, child);
 }
 
-/// Returns the value stored under string `key`, or null.
-pub fn findStringKey(arr: *const zval, key: [*:0]const u8) ?*zval {
+/// Returns the value under binary-safe string `key`, or null.
+pub fn findString(arr: *const zval, key: []const u8) ?*zval {
     const target = arr.value.arr orelse return null;
-    return ffi.zend_hash_str_find(target, key, std.mem.len(key));
+    return ffi.zend_hash_str_find(target, key.ptr, key.len);
 }
 
-/// Returns the value stored under numeric `index`, or null.
+/// Returns the value under numeric `index`, or null.
 pub fn findIndex(arr: *const zval, index: u64) ?*zval {
     const target = arr.value.arr orelse return null;
     return ffi.zend_hash_index_find(target, index);

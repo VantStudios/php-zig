@@ -4,7 +4,7 @@ const hash = @import("hash.zig");
 const zval_mod = @import("zval.zig");
 
 const types = @import("types.zig");
-pub const zval = types.zval;
+const zval = types.zval;
 
 // High-level ergonomic layer: thin, nullable wrappers over the low-level
 // primitives in `zval.zig`/`hash.zig`. Every function accepts `?*zval` and
@@ -31,12 +31,12 @@ pub fn returnDouble(return_value: ?*zval, val: f64) void {
     if (return_value) |rv| zval_mod.setDouble(rv, val);
 }
 
-/// Returns a binary-safe string.
+/// Binary-safe string.
 pub fn returnString(return_value: ?*zval, s: []const u8) void {
     if (return_value) |rv| zval_mod.setString(rv, s);
 }
 
-/// Returns a null-terminated string.
+/// Null-terminated string (spanned before copy).
 pub fn returnStringZ(return_value: ?*zval, s: [*:0]const u8) void {
     returnString(return_value, std.mem.span(s));
 }
@@ -79,37 +79,37 @@ pub fn arrayPushArrayOwned(parent: ?*zval, child: *zval) void {
     if (parent) |p| hash.pushArrayOwned(p, child);
 }
 
-pub fn arraySetNull(arr: ?*zval, key: [*:0]const u8) void {
+pub fn arraySetNull(arr: ?*zval, key: []const u8) void {
     if (arr) |a| hash.setNull(a, key);
 }
 
-pub fn arraySetBool(arr: ?*zval, key: [*:0]const u8, val: bool) void {
+pub fn arraySetBool(arr: ?*zval, key: []const u8, val: bool) void {
     if (arr) |a| hash.setBool(a, key, val);
 }
 
-pub fn arraySetLong(arr: ?*zval, key: [*:0]const u8, val: i64) void {
+pub fn arraySetLong(arr: ?*zval, key: []const u8, val: i64) void {
     if (arr) |a| hash.setLong(a, key, val);
 }
 
-pub fn arraySetDouble(arr: ?*zval, key: [*:0]const u8, val: f64) void {
+pub fn arraySetDouble(arr: ?*zval, key: []const u8, val: f64) void {
     if (arr) |a| hash.setDouble(a, key, val);
 }
 
-pub fn arraySetString(arr: ?*zval, key: [*:0]const u8, val: []const u8) void {
+pub fn arraySetString(arr: ?*zval, key: []const u8, val: []const u8) void {
     if (arr) |a| hash.setString(a, key, val);
 }
 
-pub fn arraySetStringZ(arr: ?*zval, key: [*:0]const u8, val: [*:0]const u8) void {
+pub fn arraySetStringZ(arr: ?*zval, key: []const u8, val: [*:0]const u8) void {
     if (arr) |a| hash.setStringZ(a, key, val);
 }
 
 /// Assigns `child` under `key`, keeping `child` usable (takes a new reference).
-pub fn arraySetArray(parent: ?*zval, key: [*:0]const u8, child: *zval) void {
+pub fn arraySetArray(parent: ?*zval, key: []const u8, child: *zval) void {
     if (parent) |p| hash.setArray(p, key, child);
 }
 
 /// Moves `child` under `key`; `child` must not be used afterwards.
-pub fn arraySetArrayOwned(parent: ?*zval, key: [*:0]const u8, child: *zval) void {
+pub fn arraySetArrayOwned(parent: ?*zval, key: []const u8, child: *zval) void {
     if (parent) |p| hash.setArrayOwned(p, key, child);
 }
 

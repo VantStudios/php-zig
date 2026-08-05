@@ -1,16 +1,17 @@
 const ffi = @import("ffi.zig");
 
 const types = @import("types.zig");
-pub const zend_string = types.zend_string;
+const zend_string = types.zend_string;
 
 /// Allocates a `zend_string` of `len` bytes with refcount 1.
 ///
 /// The allocation is `@sizeOf(zend_string) + len` bytes, so the `val` buffer
 /// has `len + 1` bytes (including the NUL terminator). The caller owns the
-/// returned reference and must eventually call `free`.
-pub fn alloc(len: usize) ?*zend_string {
+/// returned reference and must eventually call `free`. Never returns null:
+/// `_emalloc` bails out on OOM rather than failing.
+pub fn alloc(len: usize) *zend_string {
     const size = @sizeOf(zend_string) + len;
-    const mem = ffi._emalloc(size) orelse return null;
+    const mem = ffi._emalloc(size);
 
     const str: *zend_string = @ptrCast(@alignCast(mem));
     str.gc.refcount = 1;
@@ -21,8 +22,8 @@ pub fn alloc(len: usize) ?*zend_string {
 }
 
 /// Allocates a `zend_string` and copies `s` into it (binary-safe, NUL-terminated).
-pub fn dup(s: []const u8) ?*zend_string {
-    const str = alloc(s.len) orelse return null;
+pub fn dup(s: []const u8) *zend_string {
+    const str = alloc(s.len);
 
     const val_ptr: [*]u8 = @ptrCast(&str.val[0]);
     @memcpy(val_ptr[0..s.len], s);

@@ -29,6 +29,13 @@ test "PHP 8.0 ZTS x86_64 core struct layout" {
 
     try std.testing.expectEqual(@as(usize, 8), @offsetOf(types.zend_string, "h"));
     try std.testing.expectEqual(@as(usize, 16), @offsetOf(types.zend_string, "len"));
+
+    // zend_execute_data (PHP 8.0): 8 pointers + This zval = 64 + 16.
+    try std.testing.expectEqual(@as(usize, 80), @sizeOf(types.zend_execute_data));
+    try std.testing.expectEqual(@as(usize, 0), @offsetOf(types.zend_execute_data, "opline"));
+    try std.testing.expectEqual(@as(usize, 32), @offsetOf(types.zend_execute_data, "this"));
+    try std.testing.expectEqual(@as(usize, 48), @offsetOf(types.zend_execute_data, "prev_execute_data"));
+    try std.testing.expectEqual(@as(usize, 72), @offsetOf(types.zend_execute_data, "extra_named_params"));
 }
 
 test "zval type_info encodes type and flags" {

@@ -3,101 +3,100 @@ const php = @import("php");
 // Array building and reading: returnArray/arrayPush*/arraySet*, nested arrays,
 // ArrayIter iteration, and low-level hash lookups.
 
-const arginfo_build_array = [_]php.zend_internal_arg_info{
-    php.returnInfo(php.MAY_BE_ARRAY),
+const arginfo_build_array = [_]php.module.zend_internal_arg_info{
+    php.module.returnInfo(php.types.MAY_BE_ARRAY),
 };
 
 fn php_build_array(
-    execute_data: ?*php.zend_execute_data,
+    execute_data: ?*php.types.zend_execute_data,
     return_value: ?*php.types.zval,
 ) callconv(.c) void {
     _ = execute_data;
 
-    php.returnArray(return_value, 8);
-    php.arrayPushLong(return_value, 10);
-    php.arrayPushString(return_value, "first");
-    php.arrayPushBool(return_value, true);
-    php.arrayPushNull(return_value);
-    php.arraySetString(return_value, "name", "php-zig");
-    php.arraySetDouble(return_value, "pi", 3.14159);
-    php.arraySetLong(return_value, "answer", 42);
+    php.helpers.returnArray(return_value, 8);
+    php.helpers.arrayPushLong(return_value, 10);
+    php.helpers.arrayPushString(return_value, "first");
+    php.helpers.arrayPushBool(return_value, true);
+    php.helpers.arrayPushNull(return_value);
+    php.helpers.arraySetString(return_value, "name", "php-zig");
+    php.helpers.arraySetDouble(return_value, "pi", 3.14159);
+    php.helpers.arraySetLong(return_value, "answer", 42);
 
     // Nested array: build a child and move it in (no copy).
-    var child = php.newArrayZval(2);
-    php.arrayPushString(&child, "nested-a");
-    php.arrayPushString(&child, "nested-b");
-    php.arrayPushArrayOwned(return_value, &child);
+    var child = php.helpers.newArrayZval(2);
+    php.helpers.arrayPushString(&child, "nested-a");
+    php.helpers.arrayPushString(&child, "nested-b");
+    php.helpers.arrayPushArrayOwned(return_value, &child);
 
     // Same, but under a string key.
-    var child2 = php.newArrayZval(1);
-    php.arrayPushLong(&child2, 99);
-    php.arraySetArrayOwned(return_value, "child2", &child2);
+    var child2 = php.helpers.newArrayZval(1);
+    php.helpers.arrayPushLong(&child2, 99);
+    php.helpers.arraySetArrayOwned(return_value, "child2", &child2);
 }
 
-const arginfo_array_sum_plus = [_]php.zend_internal_arg_info{
-    php.returnInfo(php.MAY_BE_LONG),
-    php.paramInfo("xs", php.MAY_BE_ARRAY),
-    php.paramInfo("extra", php.MAY_BE_LONG),
+const arginfo_array_sum_plus = [_]php.module.zend_internal_arg_info{
+    php.module.returnInfo(php.types.MAY_BE_LONG),
+    php.module.paramInfo("xs", php.types.MAY_BE_ARRAY),
+    php.module.paramInfo("extra", php.types.MAY_BE_LONG),
 };
 
 fn php_array_sum_plus(
-    execute_data: ?*php.zend_execute_data,
+    execute_data: ?*php.types.zend_execute_data,
     return_value: ?*php.types.zval,
 ) callconv(.c) void {
-    const xs = php.getArg(execute_data, 1) orelse return php.returnNull(return_value);
-    const extra = php.getArg(execute_data, 2) orelse return php.returnNull(return_value);
+    const xs = php.params.getArg(execute_data, 1) orelse return php.helpers.returnNull(return_value);
+    const extra = php.params.getArg(execute_data, 2) orelse return php.helpers.returnNull(return_value);
 
-    const arr = xs.toArray() orelse return php.returnNull(return_value);
+    const arr = xs.toArray() orelse return php.helpers.returnNull(return_value);
     const extra_value = extra.toLong() orelse 0;
 
     // Iterate with ArrayIter; read long values through the raw union.
-    var iter = php.ArrayIter.init(arr);
+    var iter = php.hash.ArrayIter.init(arr);
     var sum: i64 = extra_value;
     while (iter.next()) |entry| {
-        if (php.zval.getType(entry.value) != php.IS_LONG) continue;
+        if (php.zval.getType(entry.value) != php.types.IS_LONG) continue;
         sum += entry.value.value.lval;
     }
-    php.returnLong(return_value, sum);
+    php.helpers.returnLong(return_value, sum);
 }
 
-const arginfo_array_first = [_]php.zend_internal_arg_info{
-    php.returnInfo(php.MAY_BE_LONG | php.MAY_BE_NULL),
-    php.paramInfo("xs", php.MAY_BE_ARRAY),
+const arginfo_array_first = [_]php.module.zend_internal_arg_info{
+    php.module.returnInfo(php.types.MAY_BE_LONG | php.types.MAY_BE_NULL),
+    php.module.paramInfo("xs", php.types.MAY_BE_ARRAY),
 };
 
 fn php_array_first(
-    execute_data: ?*php.zend_execute_data,
+    execute_data: ?*php.types.zend_execute_data,
     return_value: ?*php.types.zval,
 ) callconv(.c) void {
-    const xs = php.getArg(execute_data, 1) orelse return php.returnNull(return_value);
-    const found = php.hash.findIndex(xs.raw(), 0) orelse return php.returnNull(return_value);
-    if (php.zval.getType(found) != php.IS_LONG) return php.returnNull(return_value);
-    php.returnLong(return_value, found.value.lval);
+    const xs = php.params.getArg(execute_data, 1) orelse return php.helpers.returnNull(return_value);
+    const found = php.hash.findIndex(xs.raw(), 0) orelse return php.helpers.returnNull(return_value);
+    if (php.zval.getType(found) != php.types.IS_LONG) return php.helpers.returnNull(return_value);
+    php.helpers.returnLong(return_value, found.value.lval);
 }
 
-const arginfo_array_lookup = [_]php.zend_internal_arg_info{
-    php.returnInfo(php.MAY_BE_STRING | php.MAY_BE_NULL),
-    php.paramInfo("xs", php.MAY_BE_ARRAY),
-    php.paramInfo("key", php.MAY_BE_STRING),
+const arginfo_array_lookup = [_]php.module.zend_internal_arg_info{
+    php.module.returnInfo(php.types.MAY_BE_STRING | php.types.MAY_BE_NULL),
+    php.module.paramInfo("xs", php.types.MAY_BE_ARRAY),
+    php.module.paramInfo("key", php.types.MAY_BE_STRING),
 };
 
 fn php_array_lookup(
-    execute_data: ?*php.zend_execute_data,
+    execute_data: ?*php.types.zend_execute_data,
     return_value: ?*php.types.zval,
 ) callconv(.c) void {
-    const xs = php.getArg(execute_data, 1) orelse return php.returnNull(return_value);
-    const key = php.getArg(execute_data, 2) orelse return php.returnNull(return_value);
-    const key_str = key.toString() orelse return php.returnNull(return_value);
+    const xs = php.params.getArg(execute_data, 1) orelse return php.helpers.returnNull(return_value);
+    const key = php.params.getArg(execute_data, 2) orelse return php.helpers.returnNull(return_value);
+    const key_str = key.toString() orelse return php.helpers.returnNull(return_value);
 
-    // PHP strings are NUL-terminated internally, so viewing the slice as a
-    // `[*:0]const u8` is safe here (visible low-level cast).
-    const found = php.hash.findStringKey(xs.raw(), @ptrCast(key_str.ptr)) orelse
-        return php.returnNull(return_value);
+    // Slice lookup is binary-safe; no NUL-termination requirement on the key.
+    const found = php.hash.findString(xs.raw(), key_str) orelse
+        return php.helpers.returnNull(return_value);
 
     php.zval.copy(return_value.?, found);
 }
 
-const extension_functions = [_]php.zend_function_entry{
+const extension_functions = [_]php.module.zend_function_entry{
     .{
         .fname = "build_array",
         .handler = php_build_array,
@@ -126,15 +125,15 @@ const extension_functions = [_]php.zend_function_entry{
         .num_args = 2,
         .flags = 0,
     },
-    php.function_entry_end,
+    php.module.function_entry_end,
 };
 
-export var my_module_entry = php.createModule(.{
+export var my_module_entry = php.module.createModule(.{
     .name = "php_zig_arrays",
     .version = "1.0.0",
     .functions = &extension_functions,
 });
 
-export fn get_module() *php.zend_module_entry {
+export fn get_module() *php.module.zend_module_entry {
     return &my_module_entry;
 }
