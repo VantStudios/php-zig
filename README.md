@@ -164,10 +164,34 @@ pub fn createModule(opts: ModuleOptions) zend_module_entry
 pub fn returnInfo(type_mask: u32) zend_internal_arg_info
 pub fn paramInfo(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info
 pub fn paramInfoOptional(name: [*:0]const u8, type_mask: u32, default_value: [*:0]const u8) zend_internal_arg_info
+pub fn paramInfoByRef(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info
+pub fn paramInfoByRefOptional(name: [*:0]const u8, type_mask: u32, default_value: [*:0]const u8) zend_internal_arg_info
+pub fn paramInfoVariadic(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info
+pub fn paramInfoVariadicByRef(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info
 
 // Sentinel to end the function table
 pub const function_entry_end: zend_function_entry
 ```
+
+By-reference (`&$arg`) and variadic (`...$arg`) parameters encode send-mode/variadic
+markers in the high bits of the type mask (`ZEND_SEND_BY_REF = 1<<24`,
+`ZEND_PREFER_REF = 2<<24`, `ZEND_IS_VARIADIC_BIT = 1<<26`). Reflection reports
+these faithfully (`ReflectionParameter::isPassedByReference()`, `isVariadic()`).
+
+### References (`zval` primitives)
+
+```zig
+// zval reference helpers
+pub const isRef = zval.isRef;        // zval.u1.v.type == IS_REFERENCE
+pub const makeRef = zval.makeRef;    // ZVAL_MAKE_REF — box zv in place (_emalloc)
+pub const derefValue = zval.derefValue; // pointer to the boxed zval
+pub const gcReference = zval.GC_REFERENCE; // 26 = IS_REFERENCE | GC_NOT_COLLECTABLE
+```
+
+`zend_reference` is a 32-byte box (`gc` + `val` + `sources`) built by hand with
+`_emalloc` — PHP 8.0 does not export a `zend_make_ref` symbol. `makeRef` moves the
+zval's current payload into the box without an incref. `Param` gains `isRef()` /
+`deref()` / `toRef()` for by-ref arguments.
 
 ### Return Helpers
 
@@ -285,11 +309,11 @@ public and exposes the raw primitives for power users:
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `php.ffi`       | Every raw `extern fn` / `@extern` against PHP (cross-platform names, incl. Windows `@@N` decoration). `externDecl` resolves a symbol name per-OS.                                     |
 | `php.types`     | Hand-rolled `extern struct`s matching the PHP 8.0 ZTS ABI + `IS_*`/`MAY_BE_*` constants. The `zval` type lives here.                                                                  |
-| `php.zval`      | zval operations: `setNull/True/False/Long/Double/String/Array`, `getType`, `typeInfo`, `copy`, `addRef`, `release`, `isRefcounted`.                                                   |
+| `php.zval`      | zval operations: `setNull/True/False/Long/Double/String/Array`, `getType`, `typeInfo`, `copy`, `addRef`, `release`, `isRefcounted`, `isRef`, `makeRef`, `derefValue`.               |
 | `php.string`    | `zend_string` allocation/viewing: `alloc`, `dup`, `free`, `slice`. Strings are built with `_emalloc`/`_efree` because `zend_string_init` is not exported by the Linux PHP 8.0 binary. |
 | `php.hash`      | Hash-table ops: `push*`/`set*`, `pushArrayOwned`/`setArrayOwned` (move), `findStringKey`, `findIndex`, `count`, `ArrayIter`, `ArrayKey`, `ArrayEntry`.                                |
-| `php.params`    | `Param` (borrowed zval view), `getArg`, `getArgCount`. Argument lookup walks the raw `execute_data` layout — documented at the site.                                                  |
-| `php.module`    | `zend_module_entry`, `zend_function_entry`, `zend_internal_arg_info`, `createModule`, arginfo helpers, `ZEND_API`/`BUILD_ID`.                                                         |
+| `php.params`    | `Param` (borrowed zval view), `getArg`, `getArgCount`, `isRef`/`deref`/`toRef`. Argument lookup walks the raw `execute_data` layout — documented at the site.                         |
+| `php.module`    | `zend_module_entry`, `zend_function_entry`, `zend_internal_arg_info`, `createModule`, arginfo helpers (incl. by-ref/variadic), `ZEND_API`/`BUILD_ID`.                                  |
 | `php.constants` | `registerLong/Double/String/Bool`, `CONST_CS`, `CONST_PERSISTENT`. |
 | `php.errors` | Error levels (`E_WARNING`, ...), `throwException/throwError/throwTypeError/throwValueError`, `phpError`. Uses the built-in `Exception`/`Error` class entries. |
 
@@ -310,7 +334,7 @@ Comptime ABI-layout checks (no PHP needed):
 ~/.zvm/0.16.0/zig build test
 ```
 
-The `test/` folder holds five runnable PHP extensions (each with a
+The `test/` folder holds six runnable PHP extensions (each with a
 `main.zig` + `test.php` consumer), covering the helper layer and the
 low-level primitives:
 
@@ -322,6 +346,7 @@ low-level primitives:
 | `constants` | constant registration in module startup, optional params |
 | `lowlevel` | raw FFI calls, hand-built zvals, explicit refcounts |
 | `errors` | throwing exceptions/errors, `phpError` levels via a user error handler |
+| `references` | by-ref mutation (`&`), variadic args, reflection reporting |
 
 Run them against the local PHP 8.0 binary:
 

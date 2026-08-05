@@ -25,6 +25,42 @@ pub fn isRefcounted(zv: *const zval) bool {
     return (zv.u1.v.type_flags & Z_TYPE_FLAG_REFCOUNTED) != 0;
 }
 
+/// Returns true when `zv` is a reference (`&`).
+pub fn isRef(zv: *const zval) bool {
+    return getType(zv) == types.IS_REFERENCE;
+}
+
+/// Returns a pointer to the zval held by the reference `zv`. Only valid when
+/// `isRef(zv)`.
+pub fn derefValue(zv: *const zval) *zval {
+    const raw = zv.value.ref orelse unreachable;
+    const ref: *types.zend_reference = @ptrCast(@alignCast(raw));
+    return &ref.val;
+}
+
+/// GC type_info for a reference: `GC_REFERENCE = IS_REFERENCE | GC_NOT_COLLECTABLE`.
+pub const GC_REFERENCE: u32 = types.IS_REFERENCE | (1 << 4);
+
+/// Converts `zv` in place into a reference wrapping its current value
+/// (`ZVAL_MAKE_REF`). No-op if `zv` is already a reference.
+///
+/// The reference is allocated with `_emalloc` and takes over `zv`'s current
+/// value (no incref — `zv` must own its payload). `zv` becomes
+/// `type_info = IS_REFERENCE_EX` pointing at the new box.
+pub fn makeRef(zv: *zval) void {
+    if (isRef(zv)) return;
+
+    const ref_block = ffi._emalloc(@sizeOf(types.zend_reference)) orelse return;
+    const ref: *types.zend_reference = @ptrCast(@alignCast(ref_block));
+    ref.gc.refcount = 1;
+    ref.gc.type_info = GC_REFERENCE;
+    ref.val = zv.*;
+    ref.sources = .{ .list = 0 };
+
+    zv.value.ref = ref;
+    zv.u1.type_info = types.IS_REFERENCE_EX;
+}
+
 pub fn setNull(zv: *zval) void {
     zv.u1.type_info = types.IS_NULL;
 }

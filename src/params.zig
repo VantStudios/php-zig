@@ -5,6 +5,7 @@ const types = @import("types.zig");
 pub const zval = types.zval;
 pub const zend_array = types.zend_array;
 pub const zend_execute_data = types.zend_execute_data;
+pub const zend_reference = types.zend_reference;
 
 /// The `zend_execute_data` struct (PHP 8.0 ZTS). The type is opaque in
 /// `types.zig`; this full layout is used only to compute argument offsets.
@@ -81,6 +82,22 @@ pub const Param = struct {
     pub fn toArray(self: Param) ?*zend_array {
         if (zval_mod.getType(self.zv) != types.IS_ARRAY) return null;
         return self.zv.value.arr;
+    }
+
+    /// True when the argument was passed by reference (`&$arg`).
+    pub fn isRef(self: Param) bool {
+        return zval_mod.isRef(self.zv);
+    }
+
+    /// Pointer to the zval held by a by-ref argument (only when `isRef()`).
+    pub fn deref(self: Param) *zval {
+        return zval_mod.derefValue(self.zv);
+    }
+
+    /// The `zend_reference` box for a by-ref argument (only when `isRef()`).
+    pub fn toRef(self: Param) ?*zend_reference {
+        if (!zval_mod.isRef(self.zv)) return null;
+        return self.zv.value.ref;
     }
 
     pub fn raw(self: Param) *zval {

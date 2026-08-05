@@ -7,11 +7,17 @@ pub const IS_DOUBLE: u8 = 5;
 pub const IS_STRING: u8 = 6;
 pub const IS_ARRAY: u8 = 7;
 pub const IS_OBJECT: u8 = 8;
+pub const IS_RESOURCE: u8 = 9;
+pub const IS_REFERENCE: u8 = 10;
 
 /// Bit flag stored in `zval.u1.v.type_flags` for reference-counted payloads.
 pub const Z_TYPE_FLAG_REFCOUNTED: u8 = 1;
 /// Bit flag stored in `zval.u1.v.type_flags` for cycle-collectable payloads.
 pub const Z_TYPE_FLAG_COLLECTABLE: u8 = 2;
+
+/// `zval.u1.type_info` for a reference zval: IS_REFERENCE with only the
+/// REFCOUNTED flag (references are not marked collectable at the zval level).
+pub const IS_REFERENCE_EX: u32 = IS_REFERENCE | (@as(u32, Z_TYPE_FLAG_REFCOUNTED) << 8);
 
 pub const MAY_BE_NULL: u32 = 1 << IS_NULL;
 pub const MAY_BE_FALSE: u32 = 1 << IS_FALSE;
@@ -98,6 +104,28 @@ pub const zval = extern struct {
 pub const zend_type = extern struct {
     ptr: ?*anyopaque,
     type_mask: u32,
+};
+
+/// Source bookkeeping for references made from typed properties (PHP 8.0).
+pub const zend_property_info_source_list = extern union {
+    ptr: ?*anyopaque,
+    list: usize,
+};
+
+/// A PHP reference (`&`): a refcounted box holding one zval.
+///
+/// Built by hand with `_emalloc` (no exported `zend_make_ref` in the 8.0
+/// binaries), mirroring `ZVAL_NEW_REF`:
+///   gc.refcount = 1
+///   gc.type_info = GC_REFERENCE = IS_REFERENCE | GC_NOT_COLLECTABLE = 26
+///   val = the referenced value (moved, no incref)
+///   sources.ptr = null
+/// The owning zval then has `value.ref = *zend_reference` and
+/// `type_info = IS_REFERENCE_EX`.
+pub const zend_reference = extern struct {
+    gc: zend_refcounted_h,
+    val: zval,
+    sources: zend_property_info_source_list,
 };
 
 pub const zend_execute_data = opaque {};

@@ -36,6 +36,7 @@ pub const ParamType = params.ParamType;
 pub const ArrayKey = hash.ArrayKey;
 pub const ArrayEntry = hash.ArrayEntry;
 pub const ArrayIter = hash.ArrayIter;
+pub const zend_reference = types.zend_reference;
 
 // --- Type constants ---
 pub const IS_UNDEF = types.IS_UNDEF;
@@ -47,6 +48,9 @@ pub const IS_DOUBLE = types.IS_DOUBLE;
 pub const IS_STRING = types.IS_STRING;
 pub const IS_ARRAY = types.IS_ARRAY;
 pub const IS_OBJECT = types.IS_OBJECT;
+pub const IS_RESOURCE = types.IS_RESOURCE;
+pub const IS_REFERENCE = types.IS_REFERENCE;
+pub const IS_REFERENCE_EX = types.IS_REFERENCE_EX;
 pub const Z_TYPE_FLAG_REFCOUNTED = zval.Z_TYPE_FLAG_REFCOUNTED;
 pub const Z_TYPE_FLAG_COLLECTABLE = zval.Z_TYPE_FLAG_COLLECTABLE;
 
@@ -65,6 +69,10 @@ pub const ModuleOptions = module.ModuleOptions;
 pub const returnInfo = module.returnInfo;
 pub const paramInfo = module.paramInfo;
 pub const paramInfoOptional = module.paramInfoOptional;
+pub const paramInfoByRef = module.paramInfoByRef;
+pub const paramInfoByRefOptional = module.paramInfoByRefOptional;
+pub const paramInfoVariadic = module.paramInfoVariadic;
+pub const paramInfoVariadicByRef = module.paramInfoVariadicByRef;
 pub const function_entry_end = module.function_entry_end;
 
 // --- Constants ---
@@ -96,6 +104,12 @@ pub const E_RECOVERABLE_ERROR = errors.E_RECOVERABLE_ERROR;
 pub const E_DEPRECATED = errors.E_DEPRECATED;
 pub const E_USER_DEPRECATED = errors.E_USER_DEPRECATED;
 pub const E_ALL = errors.E_ALL;
+
+// --- zval reference primitives ---
+pub const isRef = zval.isRef;
+pub const makeRef = zval.makeRef;
+pub const derefValue = zval.derefValue;
+pub const gcReference = zval.GC_REFERENCE;
 
 // --- Parameters ---
 pub const getArg = params.getArg;

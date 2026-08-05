@@ -7,6 +7,7 @@ const test_extensions = [_]struct { name: []const u8, dir: []const u8 }{
     .{ .name = "php_zig_constants", .dir = "test/constants" },
     .{ .name = "php_zig_lowlevel", .dir = "test/lowlevel" },
     .{ .name = "php_zig_errors", .dir = "test/errors" },
+    .{ .name = "php_zig_references", .dir = "test/references" },
 };
 
 pub fn build(b: *std.Build) void {

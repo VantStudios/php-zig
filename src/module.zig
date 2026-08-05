@@ -102,6 +102,44 @@ pub const function_entry_end = zend_function_entry{
     .flags = 0,
 };
 
+// Send-mode and variadic markers packed into the high bits of
+// `zend_internal_arg_info.type_.type_mask` (see PHP `zend_compile.h`):
+//   send-mode is at bits 24-25 (ZEND_SEND_BY_VAL=0, BY_REF=1, PREFER_REF=2)
+//   variadic is bit 26 (_ZEND_IS_VARIADIC_BIT = 1 << 26)
+pub const ZEND_SEND_MODE_SHIFT: u5 = 24;
+pub const ZEND_SEND_BY_VAL: u32 = 0;
+pub const ZEND_SEND_BY_REF: u32 = 1 << ZEND_SEND_MODE_SHIFT;
+pub const ZEND_SEND_PREFER_REF: u32 = 2 << ZEND_SEND_MODE_SHIFT;
+pub const ZEND_IS_VARIADIC_BIT: u32 = 1 << 26;
+
+fn maskWith(extra: u32, type_mask: u32) u32 {
+    return type_mask | extra;
+}
+
+/// A parameter passed by reference (`&$name`).
+pub fn paramInfoByRef(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
+    return paramInfo(name, maskWith(ZEND_SEND_BY_REF, type_mask));
+}
+
+/// A by-reference parameter with a default value.
+pub fn paramInfoByRefOptional(
+    name: [*:0]const u8,
+    type_mask: u32,
+    default_value: [*:0]const u8,
+) zend_internal_arg_info {
+    return paramInfoOptional(name, maskWith(ZEND_SEND_BY_REF, type_mask), default_value);
+}
+
+/// A variadic parameter (`...$name`).
+pub fn paramInfoVariadic(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
+    return paramInfo(name, maskWith(ZEND_IS_VARIADIC_BIT, type_mask));
+}
+
+/// A variadic by-reference parameter (`...&$name`).
+pub fn paramInfoVariadicByRef(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
+    return paramInfo(name, maskWith(ZEND_SEND_BY_REF | ZEND_IS_VARIADIC_BIT, type_mask));
+}
+
 pub fn createModule(opts: ModuleOptions) zend_module_entry {
     return zend_module_entry{
         .size = @sizeOf(zend_module_entry),
