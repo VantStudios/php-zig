@@ -106,6 +106,11 @@ pub const zend_type = extern struct {
     type_mask: u32,
 };
 
+/// Opaque handle returned by `zend_declare_typed_property`. Its full layout is
+/// only needed by callers that manipulate typed-property metadata, which v1
+/// does not expose.
+pub const zend_property_info = opaque {};
+
 /// Source bookkeeping for references made from typed properties (PHP 8.0).
 pub const zend_property_info_source_list = extern union {
     ptr: ?*anyopaque,
@@ -126,6 +131,79 @@ pub const zend_reference = extern struct {
     gc: zend_refcounted_h,
     val: zval,
     sources: zend_property_info_source_list,
+};
+
+pub const ZEND_INTERNAL_CLASS: u8 = 1;
+
+/// Instance of an internal/user class. `properties_table` is flexible in C;
+/// the 1-element array fixes the trailing-part size (56 bytes).
+pub const zend_object = extern struct {
+    gc: zend_refcounted_h,
+    handle: u32,
+    ce: ?*zend_class_entry,
+    handlers: ?*const anyopaque,
+    properties: ?*zend_array,
+    properties_table: [1]zval,
+};
+
+/// PHP 8.0 `_zend_class_entry`. On ZTS builds the engine forces
+/// `ZEND_MAP_PTR_KIND_PTR_OR_OFFSET`, but `static_members_table` remains a
+/// single pointer either way, so this layout is stable. Registration
+/// (`zend_register_internal_class`) copies the struct; the temp entry only
+/// needs `type`, `name`, `ce_flags` and `info.internal`.
+pub const zend_class_entry = extern struct {
+    type: u8,
+    name: ?*zend_string,
+    parent: ?*zend_class_entry,
+    refcount: c_int,
+    ce_flags: u32,
+    default_properties_count: c_int,
+    default_static_members_count: c_int,
+    default_properties_table: ?*zval,
+    default_static_members_table: ?*zval,
+    static_members_table: ?*zval,
+    function_table: zend_array,
+    properties_info: zend_array,
+    constants_table: zend_array,
+    properties_info_table: ?*?*anyopaque,
+    constructor: ?*anyopaque,
+    destructor: ?*anyopaque,
+    clone: ?*anyopaque,
+    __get: ?*anyopaque,
+    __set: ?*anyopaque,
+    __unset: ?*anyopaque,
+    __isset: ?*anyopaque,
+    __call: ?*anyopaque,
+    __callstatic: ?*anyopaque,
+    __tostring: ?*anyopaque,
+    __debugInfo: ?*anyopaque,
+    __serialize: ?*anyopaque,
+    __unserialize: ?*anyopaque,
+    iterator_funcs_ptr: ?*anyopaque,
+    create_object: ?*anyopaque,
+    get_iterator: ?*anyopaque,
+    get_static_method: ?*anyopaque,
+    serialize: ?*anyopaque,
+    unserialize: ?*anyopaque,
+    num_interfaces: u32,
+    num_traits: u32,
+    interfaces: ?*anyopaque,
+    trait_names: ?*anyopaque,
+    trait_aliases: ?*anyopaque,
+    trait_precedences: ?*anyopaque,
+    attributes: ?*anyopaque,
+    info: extern union {
+        user: extern struct {
+            filename: ?*zend_string,
+            line_start: u32,
+            line_end: u32,
+            doc_comment: ?*zend_string,
+        },
+        internal: extern struct {
+            builtin_functions: ?*const anyopaque,
+            module: ?*anyopaque,
+        },
+    },
 };
 
 /// The `zend_execute_data` struct (PHP 8.0). Single source of truth: the

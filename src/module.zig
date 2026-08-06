@@ -65,12 +65,18 @@ pub const ModuleOptions = struct {
 /// The pointer is never dereferenced — only its value is compared.
 pub const RETURN_INFO_MARKER: [*:0]const u8 = @ptrFromInt(~@as(usize, 0));
 
-pub fn returnInfo(type_mask: u32) zend_internal_arg_info {
+pub fn returnInfoNamed(name_marker: [*:0]const u8, type_mask: u32) zend_internal_arg_info {
     return .{
-        .name = RETURN_INFO_MARKER,
+        .name = name_marker,
         .type_ = .{ .ptr = null, .type_mask = type_mask },
         .default_value = null,
     };
+}
+
+pub fn returnInfo(type_mask: u32) zend_internal_arg_info {
+    // Required-minimum defaults to all params when the marker is `-1`. Keep
+    // `returnInfo` as the `required == total` case.
+    return returnInfoNamed(RETURN_INFO_MARKER, type_mask);
 }
 
 pub fn paramInfo(name: [*:0]const u8, type_mask: u32) zend_internal_arg_info {

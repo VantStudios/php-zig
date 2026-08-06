@@ -30,6 +30,28 @@ test "PHP 8.0 ZTS x86_64 core struct layout" {
     try std.testing.expectEqual(@as(usize, 8), @offsetOf(types.zend_string, "h"));
     try std.testing.expectEqual(@as(usize, 16), @offsetOf(types.zend_string, "len"));
 
+    // zend_object (PHP 8.0): gc + handle + ce + handlers + properties + table.
+    try std.testing.expectEqual(@as(usize, 56), @sizeOf(types.zend_object));
+    try std.testing.expectEqual(@as(usize, 0), @offsetOf(types.zend_object, "gc"));
+    try std.testing.expectEqual(@as(usize, 8), @offsetOf(types.zend_object, "handle"));
+    try std.testing.expectEqual(@as(usize, 16), @offsetOf(types.zend_object, "ce"));
+    try std.testing.expectEqual(@as(usize, 24), @offsetOf(types.zend_object, "handlers"));
+    try std.testing.expectEqual(@as(usize, 32), @offsetOf(types.zend_object, "properties"));
+    try std.testing.expectEqual(@as(usize, 40), @offsetOf(types.zend_object, "properties_table"));
+
+    // zend_class_entry (PHP 8.0, no map_ptr size change): see zend.h.
+    try std.testing.expectEqual(@as(usize, 464), @sizeOf(types.zend_class_entry));
+    try std.testing.expectEqual(@as(usize, 8), @offsetOf(types.zend_class_entry, "name"));
+    try std.testing.expectEqual(@as(usize, 16), @offsetOf(types.zend_class_entry, "parent"));
+    try std.testing.expectEqual(@as(usize, 28), @offsetOf(types.zend_class_entry, "ce_flags"));
+    try std.testing.expectEqual(@as(usize, 64), @offsetOf(types.zend_class_entry, "function_table"));
+    try std.testing.expectEqual(@as(usize, 120), @offsetOf(types.zend_class_entry, "properties_info"));
+    try std.testing.expectEqual(@as(usize, 176), @offsetOf(types.zend_class_entry, "constants_table"));
+    try std.testing.expectEqual(@as(usize, 240), @offsetOf(types.zend_class_entry, "constructor"));
+    try std.testing.expectEqual(@as(usize, 344), @offsetOf(types.zend_class_entry, "iterator_funcs_ptr"));
+    try std.testing.expectEqual(@as(usize, 352), @offsetOf(types.zend_class_entry, "create_object"));
+    try std.testing.expectEqual(@as(usize, 440), @offsetOf(types.zend_class_entry, "info"));
+
     // zend_execute_data (PHP 8.0): 8 pointers + This zval = 64 + 16.
     try std.testing.expectEqual(@as(usize, 80), @sizeOf(types.zend_execute_data));
     try std.testing.expectEqual(@as(usize, 0), @offsetOf(types.zend_execute_data, "opline"));

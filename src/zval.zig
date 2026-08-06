@@ -80,6 +80,16 @@ pub fn setString(zv: *zval, s: []const u8) void {
     zv.u1.type_info = typeInfo(types.IS_STRING, Z_TYPE_FLAG_REFCOUNTED);
 }
 
+/// Sets `zv` to the interned persistent string `s` (no refcount: interned
+/// strings are immortal). Use for class member defaults that PHP copies into
+/// persistent storage; regular request strings (from `setString`) are
+/// request-scoped and would be freed early.
+pub fn setInternedString(zv: *zval, s: []const u8) void {
+    const str = string.intern(s);
+    zv.value.str = str;
+    zv.u1.type_info = types.IS_STRING;
+}
+
 /// Sets `zv` to a new array reserving `reserve` slots.
 pub fn setArray(zv: *zval, reserve: u32) void {
     zv.value.arr = ffi._zend_new_array(reserve);

@@ -66,6 +66,12 @@ pub const Param = struct {
         return self.zv.value.arr;
     }
 
+    pub fn toObject(self: Param) ?*types.zend_object {
+        if (zval_mod.getType(self.zv) != types.IS_OBJECT) return null;
+        const obj = self.zv.value.obj orelse return null;
+        return @ptrCast(@alignCast(obj));
+    }
+
     /// True when the argument was passed by reference.
     pub fn isRef(self: Param) bool {
         return zval_mod.isRef(self.zv);

@@ -31,6 +31,13 @@ pub fn dup(s: []const u8) *zend_string {
     return str;
 }
 
+/// Interns `s` into a persistent, permanent interned string. The result lives
+/// for the process lifetime (never freed by `free`). Used for class member
+/// defaults that PHP copies into persistent storage (properties, constants).
+pub fn intern(s: []const u8) *zend_string {
+    return @ptrCast(@alignCast(ffi.zend_string_init_interned(s.ptr, s.len, 1)));
+}
+
 /// Releases a `zend_string` allocated by `alloc`/`dup`.
 pub fn free(str: *zend_string) void {
     ffi._efree(str);

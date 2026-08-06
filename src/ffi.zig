@@ -4,6 +4,7 @@ const types = @import("types.zig");
 const zval = types.zval;
 const zend_array = types.zend_array;
 const zend_string = types.zend_string;
+const zend_object = types.zend_object;
 
 /// Hash table iteration position and key kinds (see PHP zend_hash.h).
 pub const HashPosition = u32;
@@ -183,3 +184,101 @@ pub extern var zend_ce_exception: ?*anyopaque;
 pub extern var zend_ce_error: ?*anyopaque;
 pub extern var zend_ce_type_error: ?*anyopaque;
 pub extern var zend_ce_value_error: ?*anyopaque;
+
+// Object/class support (zend_API.h / zend_object_handlers.c).
+//
+// `zend_register_*`, `zend_declare_*`, `object_init_ex`, property access and
+// `zend_std_get_*` are exported *undecorated* on Windows (verified with
+// `objdump -p`); only `zend_object_std_init`/`zend_objects_new` use the C++
+// decorated names.
+pub extern fn zend_register_internal_class(ce: ?*anyopaque) ?*anyopaque;
+pub extern fn zend_register_internal_class_ex(ce: ?*anyopaque, parent_ce: ?*anyopaque) ?*anyopaque;
+pub extern fn zend_register_internal_interface(ce: ?*anyopaque) ?*anyopaque;
+// Attaches an already-registered interface to a class entry
+// (`zend_do_implement_interface`, zend_API.h). Undecorated on both binaries.
+pub extern fn zend_do_implement_interface(ce: ?*anyopaque, iface: ?*anyopaque) void;
+// Declares a *typed* property (PHP 8.0 signature, zend_API.h): 8.0.13 order is
+// `(ce, name, property, access_type, doc_comment, type)` with a
+// `zend_property_info *` return — the 8.1+ order puts `type` before
+// `doc_comment`. `doc_comment` may be null. Undecorated on both binaries.
+pub extern fn zend_declare_typed_property(
+    ce: ?*anyopaque,
+    name: ?*zend_string,
+    property: ?*zval,
+    access_type: c_int,
+    doc_comment: ?*zend_string,
+    type_: types.zend_type,
+) ?*types.zend_property_info;
+pub extern fn zend_declare_property(
+    ce: ?*anyopaque,
+    name: [*]const u8,
+    name_length: usize,
+    property: ?*zval,
+    access_type: c_int,
+) void;
+pub extern fn zend_declare_class_constant(
+    ce: ?*anyopaque,
+    name: [*]const u8,
+    name_length: usize,
+    value: ?*zval,
+    access_type: c_int,
+) void;
+pub extern fn object_init_ex(arg: ?*zval, ce: ?*anyopaque) c_int;
+// Interned, persistent class/constant names. Undecorated on Windows (verified).
+// `zend_string_init_interned` is a *function-pointer variable* (ZTS) in 8.0, so
+// it is declared as an extern var of function-pointer type and called through.
+// Returns a `zend_string *`; must be released with `zend_string_release_ex(., 1)`.
+pub extern var zend_string_init_interned: *const fn (
+    str: [*]const u8,
+    length: usize,
+    persistent: c_int,
+) callconv(.c) ?*anyopaque;
+pub extern fn zend_read_property(
+    scope: ?*anyopaque,
+    object: ?*zend_object,
+    name: [*]const u8,
+    name_length: usize,
+    silent: bool,
+    rv: ?*zval,
+) ?*zval;
+pub extern fn zend_update_property(
+    scope: ?*anyopaque,
+    object: ?*zend_object,
+    name: [*]const u8,
+    name_length: usize,
+    value: ?*zval,
+) void;
+pub extern fn zend_read_static_property(
+    scope: ?*anyopaque,
+    name: [*]const u8,
+    name_length: usize,
+    silent: bool,
+) ?*zval;
+pub extern fn zend_update_static_property(
+    scope: ?*anyopaque,
+    name: [*]const u8,
+    name_length: usize,
+    value: ?*zval,
+) void;
+pub extern fn zend_std_get_properties(object: ?*zend_object) ?*zend_array;
+pub extern fn zend_std_get_property_ptr_ptr(
+    object: ?*zend_object,
+    member: ?*zend_string,
+    type_: c_int,
+    cache_slot: ?*?*anyopaque,
+) ?*zval;
+
+// Default object handlers (opaque; the full struct belongs to custom-handler
+// users). Only its address is needed for INIT_CLASS_ENTRY.
+pub extern var std_object_handlers: anyopaque;
+
+pub const zend_object_std_init = externDecl(
+    *const fn (?*zend_object, ?*anyopaque) callconv(.c) void,
+    "zend_object_std_init",
+    "zend_object_std_init@@16",
+);
+pub const zend_objects_new = externDecl(
+    *const fn (?*anyopaque) callconv(.c) ?*zend_object,
+    "zend_objects_new",
+    "zend_objects_new@@8",
+);
