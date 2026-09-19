@@ -20,6 +20,8 @@ pub const zend_function_entry = extern struct {
     arg_info: ?[*]const zend_internal_arg_info,
     num_args: u32,
     flags: u32,
+    frameless_function_infos: ?*const anyopaque,
+    doc_comment: ?[*:0]const u8,
 };
 
 pub const zend_module_entry = extern struct {
@@ -105,6 +107,8 @@ pub const function_entry_end = zend_function_entry{
     .arg_info = null,
     .num_args = 0,
     .flags = 0,
+    .frameless_function_infos = null,
+    .doc_comment = null,
 };
 
 // Send-mode and variadic markers packed into the high bits of
