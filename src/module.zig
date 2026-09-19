@@ -5,8 +5,8 @@ const zval = types.zval;
 const zend_type = types.zend_type;
 const zend_execute_data = types.zend_execute_data;
 
-pub const BUILD_ID = if (builtin.os.tag == .windows) "API20200930,TS,VS16" else "API20200930,TS";
-pub const ZEND_API = 20200930;
+pub const BUILD_ID = if (builtin.os.tag == .windows) "API20240924,TS,VS16" else "API20240924,TS";
+pub const ZEND_API = 20240924;
 
 pub const zend_internal_arg_info = extern struct {
     name: [*:0]const u8,
